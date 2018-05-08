@@ -1,0 +1,6 @@
+{
+  "arch": "esp32",
+  "platform": "esp32",
+  "app_name": "m5yo",
+  "build_time_ms": 38690
+}
