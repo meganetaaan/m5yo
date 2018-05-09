@@ -21,7 +21,7 @@
 #include "fonts/FreeSerif9pt7b.h"
 #include "fonts/FreeSerif12pt7b.h"
 #include "fonts/FreeSerif18pt7b.h"
-#include "fonts/FreeSerif24pt7b.h"
+#include "fonts/FreeMono24pt7b.h"
 
 GFXfont *get_font(int n) {
   switch (n) {
@@ -32,7 +32,7 @@ GFXfont *get_font(int n) {
     case 2:
       return &FreeSerif18pt7b;
     case 3:
-      return &FreeSerif24pt7b;
+      return &FreeMono24pt7b;
   }
   return NULL;
 }

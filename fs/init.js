@@ -1,73 +1,34 @@
-load('api_azure.js');
 load('api_config.js');
 load('api_events.js');
 load('api_gpio.js');
 load('api_ili9341_spi.js');
-load('api_mqtt.js');
 load('api_net.js');
 load('api_rpc.js');
-load('api_shadow.js');
 load('api_sys.js');
 load('api_timer.js');
-load('api_watson.js');
+load('api_http.js');
+load('consts.js');
 
 let BTN1 = 39, BTN2 = 38, BTN3 = 37;
 let LCD_BACKLIGHT = 32;
 
 let devID = Cfg.get('device.id');
-let greeting = '';
 let btnc = [-1, 0, 0, 0];
 let netStatus = null;
 let cloudName = null;
 let cloudConnected = false;
 
-if (Cfg.get('azure.enable')) {
-  cloudName = 'Azure';
-  Event.addGroupHandler(Azure.EVENT_GRP, function(ev, evdata, arg) {
-    if (ev === Azure.EV_CONNECT) {
-      cloudConnected = true;
-    } else if (ev === Azure.EV_C2D) {
-      let c2d = Azure.getC2DArg(evdata);
-      print('C2D message:', c2d.props, c2d.body);
-      greeting = '';
-      printGreeting();
-      greeting = c2d.body;
-      printGreeting();
-    } else if (ev === Azure.EV_CLOSE) {
-      cloudConnected = false;
-    }
-  }, null);
-} else if (Cfg.get('gcp.enable')) {
-  cloudName = 'GCP';
-} else if (Cfg.get('watson.enable')) {
-  cloudName = 'Watson';
-  Event.addGroupHandler(Watson.EVENT_GRP, function(ev, evdata, arg) {
-    if (ev === Watson.EV_CONNECT) {
-      cloudConnected = true;
-      watsonReportBtnStatus();
-    } else if (ev === Watson.EV_CLOSE) {
-      cloudConnected = false;
-    }
-  }, null);
-} else if (Cfg.get('dash.enable')) {
-  cloudName = 'Mongoose';
-} else if (Cfg.get('mqtt.enable')) {
-  if (Cfg.get('mqtt.server').indexOf('amazonaws') > 0) {
-    cloudName = 'Amazon';
-  } else {
-    cloudName = 'MQTT';
-  }
-}
-
-MQTT.setEventHandler(function(conn, ev, edata) {
-  if (cloudName && cloudName !== 'Azure' && cloudName !== Watson) {
-    if (ev === MQTT.EV_CONNACK) {
-      cloudConnected = true;
-    } else if (ev === MQTT.EV_CLOSE) {
-      cloudConnected = false;
+Cfg.set({ wifi: { ap: { enable: false } } });  // Disable WiFi AP mode
+Cfg.set({
+  wifi: {
+    sta: {
+      enable: true,
+      ssid: WIFI_SSID,
+      pass: WIFI_PASSWORD
     }
   }
-}, null);
+});
+Cfg.set({ debug: { level: 3 } });            // Set debug level to 3
 
 let getFont = ffi('void* get_font(int)');
 let fonts = [getFont(0), getFont(1), getFont(2), getFont(3)];
@@ -77,7 +38,7 @@ function line(n) {
   return res;
 }
 function clearLine(n) {
-  ILI9341.setFgColor565(ILI9341.BLACK);
+  ILI9341.setFgColor(155, 89, 182);
   ILI9341.fillRect(0, line(n), 319, ILI9341.getMaxFontHeight());
   ILI9341.setFgColor565(ILI9341.WHITE);
 }
@@ -89,7 +50,8 @@ function printCentered(xc, y, text) {
 GPIO.set_mode(LCD_BACKLIGHT, GPIO.MODE_OUTPUT);
 GPIO.write(LCD_BACKLIGHT, 1);
 ILI9341.setRotation(ILI9341.PORTRAIT_FLIP);
-ILI9341.setBgColor(0, 0, 0);
+ILI9341.setBgColor(155, 89, 182);
+ILI9341.setFgColor(155, 89, 182);
 ILI9341.fillScreen();
 ILI9341.setFont(fonts[1]);
 ILI9341.setFgColor565(ILI9341.WHITE);
@@ -104,54 +66,27 @@ function printNetStatus() {
   ILI9341.print(5, line(1), 'WiFi: ' + netStatus + '         ');
 }
 
-function printCloudStatus() {
-  ILI9341.setFont(fonts[1]);
-  ILI9341.setFgColor565(ILI9341.WHITE);
-  let cs;
-  if (cloudName) {
-    cs = cloudName + ', ' + (cloudConnected ? 'connected' : 'not connected');
-  } else {
-    cs = 'not configured';
-  }
-  ILI9341.print(5, line(2), 'Cloud: ' + cs + '         ');
-}
-
 function printTime() {
   ILI9341.setFont(fonts[1]);
   ILI9341.setFgColor565(ILI9341.WHITE);
   let ts = formatTime('%H:%M:%S');
-  ILI9341.print(5, line(3), 'Time: ' + (ts ? ts : 'not set') + '   ');
+  ILI9341.print(5, line(2), 'Time: ' + (ts ? ts : 'not set') + '   ');
 }
 
-function printGreeting() {
-  ILI9341.setFont(fonts[1]);
+function printYo() {
+  ILI9341.setFont(fonts[3]);
   ILI9341.setFgColor565(ILI9341.WHITE);
-  if (greeting) {
-    printCentered(160, line(5), greeting);
-  } else {
-    clearLine(5);
-  }
-}
-
-function printBtnStatus() {
-  ILI9341.setFont(fonts[2]);
-  ILI9341.setFgColor565(ILI9341.WHITE);
-  let y = line(-1);
-  printCentered(65, y, JSON.stringify(btnc[1]))
-  printCentered(160, y, JSON.stringify(btnc[2]))
-  printCentered(255, y, JSON.stringify(btnc[3]))
+  let y = line(2);
+  printCentered(160, y, 'Yo')
 }
 
 function printStatus() {
   printNetStatus();
-  printCloudStatus();
   printTime()
-  printGreeting()
-  printBtnStatus();
 }
 
 // Monitor network connectivity.
-Event.addGroupHandler(Net.EVENT_GRP, function(ev, evdata, arg) {
+Event.addGroupHandler(Net.EVENT_GRP, function (ev, evdata, arg) {
   if (ev === Net.STATUS_DISCONNECTED) {
     netStatus = 'not connected';
   } else if (ev === Net.STATUS_CONNECTING) {
@@ -162,59 +97,34 @@ Event.addGroupHandler(Net.EVENT_GRP, function(ev, evdata, arg) {
   printNetStatus();
 }, null);
 
-function watsonReportBtnStatus() {
-  // Make sure BTN1 is always reported first, to make the QuickStart graph deterministic.
-  Watson.sendEventJSON('btnStatus', {d:{btn1: btnc[1]}});
-  Watson.sendEventJSON('btnStatus', {d:{btn2: btnc[2], btn3: btnc[3]}});
+function postYo(onSuccess, onError) {
+  HTTP.query({
+    url: 'http://api.justyo.co/yo/',
+    // headers: { 'X-Foo': 'bar' },     // Optional - headers
+    // data: {foo: 1, bar: 'baz'},      // Optional. If set, JSON-encoded and POST-ed
+    data: {
+      'api_token': API_TOKEN,
+      'username': 'mgntn',
+      'link': 'http://google.com'
+    },
+    success: onSuccess,
+    error: onError
+  });
 }
 
 function reportBtnPress(n) {
-  btnc[n] = btnc[n] + 1;
-
-  let btns = JSON.stringify(n);
-  let msg = JSON.stringify({btn: n, cnt: btnc[n]});
-  if (cloudName === 'Azure') {
-    Azure.sendD2CMsg('btn=' + btns, msg);
-  } else if (cloudName === 'Watson') {
-    watsonReportBtnStatus();
-  } else {
-    MQTT.pub(devID + '/messages', msg);
-  }
-  let upd = {};
-  upd["btn" + btns] = btnc[n];
-  Shadow.update(0, upd);
-  printBtnStatus();
+  postYo(
+    function (body, full_http_msg) {
+      print(body);
+      printYo();
+    },
+    function (err) { print(err); }
+  )
 }
 
-GPIO.set_button_handler(BTN1, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function() { reportBtnPress(1) }, null);
-GPIO.set_button_handler(BTN2, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function() { reportBtnPress(2) }, null);
-GPIO.set_button_handler(BTN3, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function() { reportBtnPress(3) }, null);
-RPC.addHandler('M5.SetGreeting', function(args) {
-  if (args.greeting === undefined) {
-    return {"error": 400, "message": "greeting not specified"};
-  }
-  ILI9341.setFont(fonts[1]);
-  greeting = '';
-  printGreeting();
-  greeting = args.greeting;
-  printGreeting();
-});
-
-Shadow.addHandler(function(ev, obj) {
-  print(ev, JSON.stringify(obj));
-  if (ev === 'CONNECTED') {
-    // Nothing. A GET will be delivered shortly.
-  } else if (ev === 'GET_ACCEPTED' && obj.reported !== undefined ) {
-    btnc[1] = obj.reported.btn1 || 0;
-    btnc[2] = obj.reported.btn2 || 0;
-    btnc[3] = obj.reported.btn3 || 0;
-    if (obj.desired !== undefined && obj.desired.greeting !== undefined) {
-      greeting = obj.desired.greeting;
-    }
-  } else if (ev === 'UPDATE_DELTA') {
-    if (obj.greeting !== undefined) greeting = obj.greeting;
-  }
-});
+GPIO.set_button_handler(BTN1, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(1) }, null);
+GPIO.set_button_handler(BTN2, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(2) }, null);
+GPIO.set_button_handler(BTN3, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(3) }, null);
 
 printStatus();
 Timer.set(1000 /* 1 sec */, Timer.REPEAT, printStatus, null);
