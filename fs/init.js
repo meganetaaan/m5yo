@@ -7,6 +7,7 @@ load('api_rpc.js');
 load('api_sys.js');
 load('api_timer.js');
 load('api_http.js');
+load('api_math.js');
 load('consts.js');
 
 let BTN1 = 39, BTN2 = 38, BTN3 = 37;
@@ -17,6 +18,7 @@ let btnc = [-1, 0, 0, 0];
 let netStatus = null;
 let cloudName = null;
 let cloudConnected = false;
+let clearCallback = null;
 
 Cfg.set({ wifi: { ap: { enable: false } } });  // Disable WiFi AP mode
 Cfg.set({
@@ -74,10 +76,15 @@ function printTime() {
 }
 
 function printYo() {
-  ILI9341.setFont(fonts[3]);
-  ILI9341.setFgColor565(ILI9341.WHITE);
-  let y = line(2);
-  printCentered(160, y, 'Yo')
+  // ILI9341.setFont(fonts[3]);
+  // ILI9341.setFgColor565(ILI9341.WHITE);
+  // let y = line(2);
+  // printCentered(160, y, 'Yo')
+  ILI9341.drawDIF(0, 0, '/yo.dif');
+  Timer.set(1000, 0, function() {
+    ILI9341.fillRect(0, 0, 320, 240);
+    // clearLine(2);
+  }, null);
 }
 
 function printStatus() {
@@ -122,9 +129,27 @@ function reportBtnPress(n) {
   )
 }
 
+function rbet(from, to) {
+  return Math.floor(from + (to - from) * Math.random());
+}
+
+let fromX = 240;
+let toX = 320;
+let fromY = 100;
+let toY = 200;
+
+function printTriangle() {
+  let xs = [rbet(fromX, toX), rbet(fromX, toX), rbet(fromX, toX)];
+  let ys = [rbet(fromY, toY), rbet(fromY, toY), rbet(fromY, toY)];
+  ILI9341.setFgColor(rbet(0, 255), rbet(0, 255), rbet(0, 255));
+  ILI9341.fillTriangle(xs[0], ys[0], xs[1], ys[1], xs[2], ys[2]);
+  ILI9341.setFgColor565(ILI9341.WHITE);
+}
+
 GPIO.set_button_handler(BTN1, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(1) }, null);
 GPIO.set_button_handler(BTN2, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(2) }, null);
 GPIO.set_button_handler(BTN3, GPIO.PULL_UP, GPIO.INT_EDGE_NEG, 20, function () { reportBtnPress(3) }, null);
 
 printStatus();
 Timer.set(1000 /* 1 sec */, Timer.REPEAT, printStatus, null);
+Timer.set(10 /* 1 sec */, Timer.REPEAT, printTriangle, null);

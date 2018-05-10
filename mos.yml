@@ -41,5 +41,8 @@ libs:
   - origin: https://github.com/mongoose-os-libs/sntp
   - origin: https://github.com/mongoose-os-libs/wifi
 
+build_vars:                                           # Add these
+  ESP_IDF_EXTRA_PARTITION: fs_ext,data,spiffs,,256K   # two lines
+
 manifest_version: 2017-09-29
 platforms: [ esp32 ]
