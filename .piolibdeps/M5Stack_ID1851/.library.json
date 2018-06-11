@@ -9,7 +9,7 @@
     ], 
     "frameworks": [], 
     "framework": "arduino", 
-    "version": "0.1.9", 
+    "version": "0.2.0", 
     "authors": [
         {
             "url": "http://www.m5stack.com", 
