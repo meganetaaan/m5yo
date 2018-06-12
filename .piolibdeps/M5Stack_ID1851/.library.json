@@ -1,0 +1,26 @@
+{
+    "name": "M5Stack", 
+    "repository": {
+        "url": "https://github.com/m5stack/m5stack.git", 
+        "type": "git"
+    }, 
+    "platforms": [
+        "espressif32"
+    ], 
+    "frameworks": [], 
+    "framework": "arduino", 
+    "version": "0.2.0", 
+    "authors": [
+        {
+            "url": "http://www.m5stack.com", 
+            "maintainer": false, 
+            "email": null, 
+            "name": "Zibin, M5Stack"
+        }
+    ], 
+    "keywords": [
+        "m5stack"
+    ], 
+    "id": 1851, 
+    "description": "An ESP32 Arduino board"
+}
